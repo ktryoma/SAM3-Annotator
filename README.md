@@ -19,6 +19,14 @@ A premium PyQt6 desktop application designed to streamline the creation of YOLO-
 
 ## 🚀 Getting Started / Running the App
 
+### Environment
+Please prepare the environment using vnev or conda.
+You can refer the required packages from Environment Requirements section.
+
+### Model file
+You need to prepare the model file (sam3.pt) and place it in the model directory. You can download it from the [Hugging Face website](https://huggingface.co/bodhicitta/sam3/blob/main/sam3.pt).
+
+### How to run
 Activate your Python environment and launch the desktop application:
 
 ```bat
@@ -100,7 +108,7 @@ Click **"📦 Export Dataset"** (📦 学習データを出力) in the left pane
 ## 📁 Directory Structure
 
 ```
-sam3ano/
+SAN3-Annotator/
 ├── main.py                  # Application entry point
 ├── run.bat                  # Windows startup batch script
 ├── app/
