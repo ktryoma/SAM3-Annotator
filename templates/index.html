@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAM3 Web Annotator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --panel-bg: rgba(30, 41, 59, 0.7);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100vh;
+            background: radial-gradient(circle at top right, #1e293b, var(--bg-dark));
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Glassmorphism Panels */
+        .glass {
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Header / Navbar */
+        header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 24px;
+            margin: 12px;
+        }
+
+        header h1 { font-size: 1.2rem; margin: 0; font-weight: 600; letter-spacing: 0.5px; }
+
+        .nav-controls { display: flex; gap: 12px; align-items: center; }
+        
+        button {
+            background: var(--accent); color: #fff;
+            border: none; border-radius: 6px;
+            padding: 8px 16px; font-size: 0.9rem;
+            cursor: pointer; transition: all 0.2s;
+            font-weight: 500;
+        }
+        button:hover { background: var(--accent-hover); transform: translateY(-1px); }
+        button:disabled { background: #475569; cursor: not-allowed; transform: none; }
+
+        input[type="text"], input[type="number"], select {
+            background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-color);
+            color: #fff; padding: 8px 12px; border-radius: 6px;
+            outline: none; transition: border 0.2s;
+        }
+        input:focus { border-color: var(--accent); }
+
+        /* Main Workspace */
+        .workspace {
+            display: flex; flex: 1; overflow: hidden;
+            margin: 0 12px 12px 12px; gap: 12px;
+        }
+
+        /* Sidebars */
+        .sidebar {
+            width: 300px; padding: 16px; display: flex; flex-direction: column;
+            gap: 16px; overflow-y: auto;
+        }
+        
+        .sidebar-section {
+            display: flex; flex-direction: column; gap: 10px;
+            padding-bottom: 16px; border-bottom: 1px solid var(--border-color);
+        }
+        .sidebar-section:last-child { border-bottom: none; }
+        .sidebar-section h3 { font-size: 1rem; margin: 0; color: #cbd5e1; font-weight: 600; }
+
+        .label-row { display: flex; gap: 8px; }
+        .label-row input { flex: 1; }
+
+        /* Canvas Area */
+        .canvas-container {
+            flex: 1; position: relative;
+            display: flex; align-items: center; justify-content: center;
+            overflow: hidden; cursor: crosshair;
+        }
+        canvas {
+            max-width: 100%; max-height: 100%;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+            border-radius: 4px;
+        }
+
+        /* Annotation List */
+        .anno-item {
+            display: flex; justify-content: space-between; align-items: center;
+            background: rgba(255, 255, 255, 0.05); padding: 8px 12px;
+            border-radius: 6px; font-size: 0.9rem; margin-bottom: 8px;
+            transition: background 0.2s;
+        }
+        .anno-item:hover { background: rgba(255, 255, 255, 0.1); }
+        .anno-delete { background: #ef4444; padding: 4px 8px; font-size: 0.8rem; }
+        .anno-delete:hover { background: #dc2626; }
+
+        /* Loader */
+        #loader { font-size: 0.9rem; color: var(--accent); display: none; }
+        
+        /* Checkbox styling */
+        .check-row { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+
+    <header class="glass">
+        <h1>SAM3 Web Annotator 🌌</h1>
+        <div class="nav-controls">
+            <span id="loader">Processing...</span>
+            <div class="check-row">
+                <input type="checkbox" id="chkFilter"> <label for="chkFilter">検出あり画像のみ</label>
+            </div>
+            <button id="btnPrev" disabled>◀ Prev</button>
+            <span id="lblNav">0 / 0</span>
+            <button id="btnNext" disabled>Next ▶</button>
+            <button id="btnSave" style="background: #10b981;">💾 Save Current</button>
+            <button id="btnSaveAll" style="background: #059669;">💾 Save All</button>
+        </div>
+    </header>
+
+    <div class="workspace">
+        <!-- Left Panel -->
+        <div class="sidebar glass">
+            <div class="sidebar-section">
+                <h3>1. 開く</h3>
+                <input type="text" id="inFolder" placeholder="C:\path\to\images">
+                <button id="btnOpen">フォルダを読み込む</button>
+            </div>
+            
+            <div class="sidebar-section">
+                <h3>2. SAM3 推論</h3>
+                <div id="labelsContainer">
+                    <div class="label-row">
+                        <input type="text" class="l-class" placeholder="class (例: dog)">
+                        <input type="text" class="l-desc" placeholder="description">
+                    </div>
+                </div>
+                <button id="btnAddLabel" style="background: #475569;">+ 追加</button>
+                <div class="check-row" style="margin-top: 8px;">
+                    <label>Conf:</label>
+                    <input type="number" id="inConf" value="0.25" step="0.05" min="0" max="1" style="width: 70px;">
+                </div>
+                <button id="btnInfer" style="background: #8b5cf6;">🚀 自動アノテーション</button>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>3. データセット出力</h3>
+                <input type="text" id="inExport" placeholder="C:\path\to\export">
+                <button id="btnExport" style="background: #f59e0b;">📦 YOLO形式でエクスポート</button>
+            </div>
+        </div>
+
+        <!-- Canvas -->
+        <div class="canvas-container glass" id="canvasWrapper">
+            <canvas id="mainCanvas"></canvas>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="sidebar glass">
+            <div class="sidebar-section">
+                <h3>アノテーション一覧</h3>
+                <div id="annoList"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API = {
+            async post(url, data) {
+                const r = await fetch(url, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                return r.json();
+            },
+            async get(url) {
+                const r = await fetch(url);
+                return r.json();
+            }
+        };
+
+        // State
+        let state = {
+            total: 0,
+            currentIndex: -1,
+            images: [],
+            annotations: [],
+            imgObj: null,
+            imgScale: 1
+        };
+
+        // Canvas Setup
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const wrapper = document.getElementById('canvasWrapper');
+
+        let isDrawing = false;
+        let startX, startY;
+        let tempRect = null;
+
+        // UI Elements
+        const lblNav = document.getElementById('lblNav');
+        const btnPrev = document.getElementById('btnPrev');
+        const btnNext = document.getElementById('btnNext');
+        const chkFilter = document.getElementById('chkFilter');
+        const loader = document.getElementById('loader');
+
+        // Functions
+        async function loadFolder() {
+            const folder = document.getElementById('inFolder').value;
+            if(!folder) return alert('フォルダパスを入力してください');
+            
+            const res = await API.post('/api/open_folder', {folder});
+            if(res.error) return alert(res.error);
+            
+            chkFilter.checked = false;
+            await updateImageList();
+            if(state.total > 0) await loadImage(0);
+        }
+
+        async function updateImageList() {
+            const filter = chkFilter.checked;
+            const res = await API.get(`/api/images?filter=${filter}`);
+            state.total = res.total;
+            state.images = res.filenames;
+            if(state.total === 0) {
+                state.currentIndex = -1;
+                lblNav.innerText = "0 / 0";
+                clearCanvas();
+            } else {
+                if (state.currentIndex >= state.total) state.currentIndex = 0;
+            }
+            updateNav();
+        }
+
+        function updateNav() {
+            if(state.currentIndex >= 0 && state.total > 0) {
+                lblNav.innerText = `${state.currentIndex + 1} / ${state.total}`;
+                btnPrev.disabled = state.currentIndex === 0;
+                btnNext.disabled = state.currentIndex === state.total - 1;
+            } else {
+                btnPrev.disabled = true;
+                btnNext.disabled = true;
+            }
+        }
+
+        async function loadImage(idx) {
+            if(idx < 0 || idx >= state.total) return;
+            
+            // Save current annotations if we have any before moving
+            if (state.currentIndex !== -1 && state.annotations.length > 0) {
+                await API.post(`/api/annotations/${state.currentIndex}`, {annotations: state.annotations});
+            }
+
+            state.currentIndex = idx;
+            updateNav();
+
+            // Fetch image
+            const imgUrl = `/api/image/${idx}?t=${Date.now()}`;
+            
+            // Fetch annotations
+            const annRes = await API.get(`/api/annotations/${idx}`);
+            state.annotations = annRes.annotations || [];
+
+            const img = new Image();
+            img.onload = () => {
+                state.imgObj = img;
+                resizeCanvas();
+                render();
+                updateAnnoList();
+            };
+            img.src = imgUrl;
+        }
+
+        function resizeCanvas() {
+            if(!state.imgObj) return;
+            const maxW = wrapper.clientWidth - 40;
+            const maxH = wrapper.clientHeight - 40;
+            
+            const imgW = state.imgObj.width;
+            const imgH = state.imgObj.height;
+            
+            const scale = Math.min(maxW/imgW, maxH/imgH);
+            state.imgScale = scale;
+            
+            canvas.width = imgW * scale;
+            canvas.height = imgH * scale;
+        }
+        window.addEventListener('resize', () => { resizeCanvas(); render(); });
+
+        function render() {
+            if(!state.imgObj) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(state.imgObj, 0, 0, canvas.width, canvas.height);
+
+            // Draw annotations
+            state.annotations.forEach(a => drawBox(a.bbox, a.label, a.is_auto ? '#8b5cf6' : '#10b981'));
+
+            // Draw temp rect
+            if(tempRect) {
+                drawBox(tempRect, "Drawing...", '#f59e0b');
+            }
+        }
+
+        function drawBox(bbox, label, color) {
+            const [x1, y1, x2, y2] = bbox;
+            const cx1 = x1 * canvas.width;
+            const cy1 = y1 * canvas.height;
+            const w = (x2 - x1) * canvas.width;
+            const h = (y2 - y1) * canvas.height;
+
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.strokeRect(cx1, cy1, w, h);
+            ctx.fillStyle = color + '40'; // 25% opacity
+            ctx.fillRect(cx1, cy1, w, h);
+
+            // Label
+            if(label) {
+                ctx.fillStyle = color;
+                ctx.font = "14px Inter";
+                const m = ctx.measureText(label);
+                ctx.fillRect(cx1, cy1 - 20, m.width + 10, 20);
+                ctx.fillStyle = "#fff";
+                ctx.fillText(label, cx1 + 5, cy1 - 5);
+            }
+        }
+
+        function clearCanvas() {
+            state.imgObj = null;
+            state.annotations = [];
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            updateAnnoList();
+        }
+
+        // Canvas Interaction
+        canvas.addEventListener('mousedown', (e) => {
+            if(!state.imgObj) return;
+            isDrawing = true;
+            const rect = canvas.getBoundingClientRect();
+            startX = (e.clientX - rect.left) / canvas.width;
+            startY = (e.clientY - rect.top) / canvas.height;
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if(!isDrawing) return;
+            const rect = canvas.getBoundingClientRect();
+            const cx = (e.clientX - rect.left) / canvas.width;
+            const cy = (e.clientY - rect.top) / canvas.height;
+            
+            tempRect = [
+                Math.min(startX, cx), Math.min(startY, cy),
+                Math.max(startX, cx), Math.max(startY, cy)
+            ];
+            render();
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            if(!isDrawing) return;
+            isDrawing = false;
+            if(tempRect) {
+                const label = prompt("クラスラベルを入力:");
+                if(label) {
+                    state.annotations.push({
+                        bbox: tempRect,
+                        label: label,
+                        conf: 1.0,
+                        is_auto: false
+                    });
+                    updateAnnoList();
+                }
+                tempRect = null;
+                render();
+            }
+        });
+
+        // Annotation List
+        function updateAnnoList() {
+            const div = document.getElementById('annoList');
+            div.innerHTML = '';
+            state.annotations.forEach((a, i) => {
+                const item = document.createElement('div');
+                item.className = 'anno-item';
+                item.innerHTML = `
+                    <span>${a.label} ${a.is_auto ? '(Auto)' : ''}</span>
+                    <button class="anno-delete" onclick="delAnno(${i})">✕</button>
+                `;
+                div.appendChild(item);
+            });
+        }
+        window.delAnno = (i) => {
+            state.annotations.splice(i, 1);
+            updateAnnoList();
+            render();
+        };
+
+        // Events
+        document.getElementById('btnOpen').onclick = loadFolder;
+        btnPrev.onclick = () => loadImage(state.currentIndex - 1);
+        btnNext.onclick = () => loadImage(state.currentIndex + 1);
+        chkFilter.onchange = async () => {
+            await updateImageList();
+            if(state.total > 0) loadImage(0);
+        };
+
+        document.getElementById('btnSave').onclick = async () => {
+            if(state.currentIndex === -1) return;
+            await API.post(`/api/annotations/${state.currentIndex}`, {annotations: state.annotations});
+            alert('保存しました');
+        };
+
+        document.getElementById('btnSaveAll').onclick = async () => {
+            if(state.currentIndex !== -1) {
+                await API.post(`/api/annotations/${state.currentIndex}`, {annotations: state.annotations});
+            }
+            const r = await API.post('/api/save_all', {});
+            if(r.success) alert(`${r.count} 件のファイルに保存しました`);
+        };
+
+        // Inference
+        document.getElementById('btnAddLabel').onclick = () => {
+            const div = document.createElement('div');
+            div.className = 'label-row';
+            div.innerHTML = `
+                <input type="text" class="l-class" placeholder="class">
+                <input type="text" class="l-desc" placeholder="description">
+            `;
+            document.getElementById('labelsContainer').appendChild(div);
+        };
+
+        document.getElementById('btnInfer').onclick = async () => {
+            const rows = document.querySelectorAll('.label-row');
+            let labels = [];
+            rows.forEach(r => {
+                const c = r.querySelector('.l-class').value;
+                const d = r.querySelector('.l-desc').value;
+                if(c) labels.push({label: c, description: d || c});
+            });
+            if(labels.length === 0) return alert('推論するラベルを入力してください');
+
+            const conf = document.getElementById('inConf').value;
+            const r = await API.post('/api/inference', {labels, conf});
+            if(r.error) return alert(r.error);
+
+            loader.style.display = 'inline';
+            checkInference();
+        };
+
+        async function checkInference() {
+            const r = await API.get('/api/inference_status');
+            if(r.is_inferencing) {
+                loader.innerText = `Inferencing: ${r.progress} / ${r.total} - ${r.msg}`;
+                setTimeout(checkInference, 1000);
+            } else {
+                loader.style.display = 'none';
+                alert('推論が完了しました。画像一覧を更新します。');
+                await updateImageList();
+                if(state.total > 0) await loadImage(0);
+            }
+        }
+
+        document.getElementById('btnExport').onclick = async () => {
+            const export_path = document.getElementById('inExport').value;
+            if(!export_path) return alert('出力パスを入力してください');
+            
+            const r = await API.post('/api/export', {export_path, train_ratio: 0.8});
+            if(r.error) return alert(r.error);
+            alert(`データセットのエクスポートが完了しました！\nTotal: ${r.total} (Train: ${r.train_count}, Val: ${r.val_count})`);
+        };
+
+    </script>
+</body>
+</html>
