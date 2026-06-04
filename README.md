@@ -27,13 +27,27 @@ You can refer the required packages from Environment Requirements section.
 You need to prepare the model file (sam3.pt) and place it in the model directory. You can download it from the [Hugging Face website](https://huggingface.co/bodhicitta/sam3/blob/main/sam3.pt).
 
 ### How to run
+#### Desktop Application
 Activate your Python environment and launch the desktop application:
 
 ```bat
 python main.py
 ```
 
----
+#### Web Application (Recommend)
+You can also run the web application, not depending on the OS. 
+First, you need to get docker image from Docker Hub as follows:
+
+```bat
+docker pull ktryoma/sam3-annotation:v1
+```
+
+Then, run the docker compose command to start the web server:
+
+```bat
+docker compose up
+```
+After the server starts, open your web browser and navigate to `http://localhost:18000` to access the annotation tool.
 
 ## 💡 How to Use
 

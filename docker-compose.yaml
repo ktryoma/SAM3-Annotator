@@ -1,0 +1,12 @@
+services:
+  ultralytics:
+    image: ktryoma/sam3-annotation:v1
+    container_name: sam3
+    gpus: all
+    restart: "no"
+    ports:
+      - "18000:18000"
+    volumes:
+      - ./:/workspace
+    working_dir: /workspace
+    command: ["python", "web.py"]
