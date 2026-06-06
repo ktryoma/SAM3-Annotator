@@ -317,7 +317,6 @@ def export_dataset():
             else:
                 src_txt = p_img.parent / f"{stem}.txt"
                 if src_txt.exists(): shutil.copy2(src_txt, dest_lbl)
-                else: dest_lbl.write_text("")
             copied += 1
         return copied
 

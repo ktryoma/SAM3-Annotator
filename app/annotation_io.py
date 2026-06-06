@@ -75,6 +75,14 @@ def save_yolo(image_path: str, bbs: List[BoundingBox], label_list: List[str],
         xc, yc, w, h = bb.normalized_xywh()
         lines.append(f"{cls_idx} {xc:.6f} {yc:.6f} {w:.6f} {h:.6f}")
 
+    if not lines:
+        if out_p.exists():
+            try:
+                out_p.unlink()
+            except Exception:
+                pass
+        return str(out_p)
+
     with open(out_p, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
     return str(out_p)
@@ -130,6 +138,14 @@ def save_yolo_from_entries(image_path: str, entries: List[dict],
         w = x2 - x1
         h = y2 - y1
         lines.append(f"{cls_idx} {xc:.6f} {yc:.6f} {w:.6f} {h:.6f}")
+
+    if not lines:
+        if out_p.exists():
+            try:
+                out_p.unlink()
+            except Exception:
+                pass
+        return str(out_p)
 
     with open(out_p, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))

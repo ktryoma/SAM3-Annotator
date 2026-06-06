@@ -242,6 +242,15 @@ class AnnotationCanvas(QGraphicsView):
         self.resetTransform()
         self.fitInView(self._pixmap_item, Qt.AspectRatioMode.KeepAspectRatio)
 
+    def clear(self):
+        self._scene.clear()
+        self._items.clear()
+        self._selected = None
+        self._draw_ghost = None
+        self._pixmap_item = None
+        self._img_w = 1
+        self._img_h = 1
+
     def get_annotations(self) -> List[BoundingBox]:
         return [it.bb for it in self._items]
 

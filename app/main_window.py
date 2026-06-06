@@ -629,9 +629,6 @@ class MainWindow(QMainWindow):
                     src_txt = p_img.parent / f"{stem}.txt"
                     if src_txt.exists():
                         shutil.copy2(src_txt, dest_lbl_path)
-                    else:
-                        # Write empty file if somehow missing
-                        dest_lbl_path.write_text("")
                 copied_count += 1
             return copied_count
 
