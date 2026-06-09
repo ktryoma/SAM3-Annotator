@@ -147,7 +147,7 @@ SAN3-Annotator/
 
 ## 💻 Environment Requirements
 
-- **Conda Environment**: `LCnet`
+- **Requirement.txt**: it will be uploaded soon... 
 - **Core Dependencies**:
   - `PyQt6` (Desktop UI Framework)
   - `ultralytics >= 8.3` (Inference engine for SAM3 & YOLO)
